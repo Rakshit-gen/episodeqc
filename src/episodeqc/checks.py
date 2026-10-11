@@ -72,6 +72,42 @@ def _lra(m: Measurements, p: Profile) -> Result | None:
     return Result("loudness-range", WARN if m.lra > p.max_lra else PASS, msg)
 
 
+def _range(name: str, label: str, value: float, limits) -> Result | None:
+    if limits is None:
+        return None
+    lo, hi = limits
+    msg = f"{label} {value:.2f} s, allowed {lo:g}-{hi:g} s"
+    return Result(name, PASS if lo <= value <= hi else FAIL, msg)
+
+
+@check("lead-silence")
+def _lead(m: Measurements, p: Profile) -> Result | None:
+    return _range("lead-silence", "silence at the start", m.lead_silence, p.lead_silence)
+
+
+@check("tail-silence")
+def _tail(m: Measurements, p: Profile) -> Result | None:
+    return _range("tail-silence", "silence at the end", m.tail_silence, p.tail_silence)
+
+
+@check("dead-air")
+def _gaps(m: Measurements, p: Profile) -> Result | None:
+    if p.max_gap is None:
+        return None
+    long = [(start, length) for start, length in m.gaps if length > p.max_gap]
+    if not long:
+        return Result("dead-air", PASS, f"no silence longer than {p.max_gap:g} s")
+    where = ", ".join(f"{length:.1f} s at {clock(start)}" for start, length in long[:5])
+    more = f" and {len(long) - 5} more" if len(long) > 5 else ""
+    return Result("dead-air", FAIL, f"{len(long)} silences over {p.max_gap:g} s: {where}{more}")
+
+
+def clock(seconds: float) -> str:
+    m, s = divmod(int(seconds), 60)
+    h, m = divmod(m, 60)
+    return f"{h}:{m:02d}:{s:02d}" if h else f"{m}:{s:02d}"
+
+
 def run_checks(m: Measurements, p: Profile) -> list[Result]:
     results = []
     for name, fn in CHECKS.items():

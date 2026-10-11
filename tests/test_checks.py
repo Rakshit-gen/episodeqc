@@ -82,3 +82,19 @@ def test_lra_only_warns():
     p = Profile(name="t", max_lra=15.0)
     assert status(meas(lra=9.0), p, "loudness-range") == PASS
     assert status(meas(lra=19.0), p, "loudness-range") == WARN
+
+
+def test_lead_and_tail_silence():
+    p = Profile(name="t", lead_silence=(0.5, 1.0), tail_silence=(1.0, 5.0))
+    assert status(meas(lead_silence=0.7), p, "lead-silence") == PASS
+    assert status(meas(lead_silence=0.1), p, "lead-silence") == FAIL
+    assert status(meas(tail_silence=6.0), p, "tail-silence") == FAIL
+
+
+def test_dead_air_names_where():
+    p = Profile(name="t", max_gap=4.0)
+    m = meas(gaps=[(65.0, 2.0), (754.3, 9.5)])
+    r = next(r for r in run_checks(m, p) if r.check == "dead-air")
+    assert r.status == FAIL
+    assert "9.5 s at 12:34" in r.message
+    assert status(meas(gaps=[(1.0, 3.9)]), p, "dead-air") == PASS
