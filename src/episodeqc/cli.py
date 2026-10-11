@@ -11,6 +11,7 @@ from .fix import suggest_gain
 from .measure import measure
 from .profiles import BUILTIN, Profile, ProfileError, load_profile
 from .report import EpisodeReport, as_json, github, markdown, text
+from .series import check_series
 
 AUDIO_EXTS = {".wav", ".flac", ".mp3", ".ogg", ".aiff", ".aif"}
 
@@ -60,6 +61,14 @@ def main(argv=None) -> int:
         help="built-in profile name or a TOML file (default: podcast)",
     )
     c.add_argument("-f", "--format", choices=["text", "json", "github", "markdown"], default="text")
+    c.add_argument(
+        "--series-tolerance",
+        type=float,
+        default=1.5,
+        metavar="LU",
+        help="warn when an episode is this far from the season median (default 1.5)",
+    )
+    c.add_argument("--no-series", action="store_true", help="skip the season consistency check")
     c.add_argument("--strict", action="store_true", help="treat warnings as failures")
     c.add_argument("-v", "--verbose", action="store_true", help="show passing checks too")
 
@@ -81,6 +90,9 @@ def main(argv=None) -> int:
         except Exception as e:  # unreadable or not audio: report it and keep going
             print(f"episodeqc: {path}: {e}", file=sys.stderr)
             errors += 1
+
+    if not args.no_series:
+        check_series(reports, args.series_tolerance)
 
     if args.format == "json":
         print(as_json(reports, profile.name))

@@ -98,3 +98,13 @@ def test_strict_fails_on_warnings(tmp_path):
     ep = write(tmp_path / "ep.wav", stereo)
     assert main(["check", str(ep)]) == 0
     assert main(["check", "--strict", str(ep)]) == 1
+
+
+def test_season_outlier(tmp_path, capsys):
+    for i, lufs in enumerate([-16.0, -16.2, -15.8, -16.9]):
+        write(tmp_path / f"ep{i}.wav", at_lufs(lufs))
+    assert main(["check", "--series-tolerance", "0.5", str(tmp_path)]) == 0
+    out = capsys.readouterr().out
+    assert "warn  series: -0.8 LU" in out
+    assert main(["check", "--no-series", str(tmp_path)]) == 0
+    assert "series" not in capsys.readouterr().out
