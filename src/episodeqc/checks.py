@@ -61,6 +61,17 @@ def _sample_peak(m: Measurements, p: Profile) -> Result | None:
     return Result("sample-peak", FAIL if m.sample_peak > p.max_sample_peak else PASS, msg)
 
 
+@check("loudness-range")
+def _lra(m: Measurements, p: Profile) -> Result | None:
+    if p.max_lra is None:
+        return None
+    # A wide range is a mix decision, not a broken file, so this only warns:
+    # whispers that vanish on a phone speaker, or shouting that makes people
+    # reach for the volume.
+    msg = f"loudness range {m.lra:.1f} LU, max {p.max_lra:.1f}"
+    return Result("loudness-range", WARN if m.lra > p.max_lra else PASS, msg)
+
+
 def run_checks(m: Measurements, p: Profile) -> list[Result]:
     results = []
     for name, fn in CHECKS.items():

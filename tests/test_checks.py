@@ -76,3 +76,9 @@ def test_sample_peak():
     p = Profile(name="t", max_sample_peak=-3.0)
     assert status(meas(sample_peak=-3.5), p, "sample-peak") == PASS
     assert status(meas(sample_peak=-2.9), p, "sample-peak") == FAIL
+
+
+def test_lra_only_warns():
+    p = Profile(name="t", max_lra=15.0)
+    assert status(meas(lra=9.0), p, "loudness-range") == PASS
+    assert status(meas(lra=19.0), p, "loudness-range") == WARN
