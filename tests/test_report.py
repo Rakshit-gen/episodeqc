@@ -48,3 +48,14 @@ def test_github_annotations():
     assert lines[0].startswith("::error file=s1/ep%2C 2.wav,title=episodeqc loudness::")
     assert "apply +5.0 dB" in lines[0]
     assert any(line.startswith("::warning ") and "dual-mono" in line for line in lines)
+
+
+def test_markdown_table():
+    from episodeqc.report import markdown
+
+    out = markdown(
+        [make("ep01.wav"), make("ep02.wav", integrated=-21.0, true_peak=-8.0)], "podcast"
+    )
+    assert "### episodeqc: podcast" in out
+    assert "| ep01.wav | ✅ | -16.0 LUFS |" in out
+    assert "| ep02.wav | ❌ |" in out and "fix: apply +5.0 dB" in out

@@ -95,3 +95,27 @@ def github(reports: list[EpisodeReport]) -> str:
             )
     lines.append(summary_line(reports))
     return "\n".join(lines)
+
+
+def markdown(reports: list[EpisodeReport], profile: str) -> str:
+    """A table for a PR comment or a job summary."""
+    icon = {PASS: "✅", WARN: "⚠️", FAIL: "❌"}
+    rows = [
+        f"### episodeqc: {profile}",
+        "",
+        "| Episode | Status | Loudness | True peak | LRA | Length | Problems |",
+        "|---|---|---|---|---|---|---|",
+    ]
+    for rep in reports:
+        m = rep.measurements
+        problems = "; ".join(f"{r.check}: {r.message}" for r in rep.results if r.status != PASS)
+        if rep.fix:
+            problems += f" (fix: {rep.fix.describe()})"
+        problems = problems.replace("|", "\\|") or "none"
+        rows.append(
+            f"| {rep.path} | {icon[rep.status]} | {m.integrated:.1f} LUFS | "
+            f"{m.true_peak:.1f} dBTP | {m.lra:.1f} LU | {m.duration / 60:.1f} min | "
+            f"{problems} |"
+        )
+    rows += ["", summary_line(reports)]
+    return "\n".join(rows)
