@@ -56,3 +56,26 @@ def momentary_max(fr: Frames) -> float:
 def short_term_max(fr: Frames) -> float:
     blocks = block_power(fr, SHORT_TERM_FRAMES)
     return float(to_lufs(blocks.max())) if len(blocks) else float("-inf")
+
+
+LRA_REL_GATE = -20.0
+
+
+def loudness_range(fr: Frames) -> float:
+    """Loudness range (LRA) in LU, per EBU Tech 3342.
+
+    Short-term loudness is sampled every 100 ms, gated at -70 LUFS and then
+    20 LU below the gated mean, and LRA is the spread between the 10th and
+    95th percentiles.
+    """
+    blocks = block_power(fr, SHORT_TERM_FRAMES)
+    blocks = blocks[to_lufs(blocks) > ABS_GATE]
+    if not len(blocks):
+        return 0.0
+    threshold = to_lufs(blocks.mean()) + LRA_REL_GATE
+    values = to_lufs(blocks)
+    values = values[values > threshold]
+    if not len(values):
+        return 0.0
+    lo, hi = np.percentile(values, [10, 95])
+    return float(hi - lo)

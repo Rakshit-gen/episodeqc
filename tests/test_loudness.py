@@ -56,3 +56,28 @@ def test_momentary_catches_a_short_burst_that_short_term_smooths():
     fr = analyze_array(np.concatenate([bed, burst, bed]), 48000)
     assert momentary_max(fr) == pytest.approx(-3.01 - 6.02, abs=0.2)
     assert short_term_max(fr) < momentary_max(fr) - 6
+
+
+def test_steady_tone_has_no_range():
+    from episodeqc.loudness import loudness_range
+
+    assert loudness_range(analyze_array(sine(seconds=20), 48000)) == pytest.approx(0, abs=0.01)
+
+
+def test_range_of_two_levels():
+    import numpy as np
+
+    from episodeqc.loudness import loudness_range
+
+    # Long stretches at two levels 10 dB apart give an LRA close to 10 LU.
+    x = np.concatenate([sine(seconds=30, amp=0.3), sine(seconds=30, amp=0.3 / 10**0.5)])
+    assert loudness_range(analyze_array(x, 48000)) == pytest.approx(10, abs=0.3)
+
+
+def test_range_ignores_material_far_below_the_mean():
+    import numpy as np
+
+    from episodeqc.loudness import loudness_range
+
+    x = np.concatenate([sine(seconds=30, amp=0.3), sine(seconds=30, amp=0.3 / 1000)])
+    assert loudness_range(analyze_array(x, 48000)) < 1
