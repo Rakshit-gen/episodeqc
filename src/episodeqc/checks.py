@@ -45,6 +45,22 @@ def _loudness(m: Measurements, p: Profile) -> Result | None:
     return Result("loudness", PASS, msg)
 
 
+@check("true-peak")
+def _true_peak(m: Measurements, p: Profile) -> Result | None:
+    if p.max_true_peak is None:
+        return None
+    msg = f"true peak {fmt(m.true_peak, 'dBTP')}, max {p.max_true_peak:.1f}"
+    return Result("true-peak", FAIL if m.true_peak > p.max_true_peak else PASS, msg)
+
+
+@check("sample-peak")
+def _sample_peak(m: Measurements, p: Profile) -> Result | None:
+    if p.max_sample_peak is None:
+        return None
+    msg = f"peak {fmt(m.sample_peak, 'dBFS')}, max {p.max_sample_peak:.1f}"
+    return Result("sample-peak", FAIL if m.sample_peak > p.max_sample_peak else PASS, msg)
+
+
 def run_checks(m: Measurements, p: Profile) -> list[Result]:
     results = []
     for name, fn in CHECKS.items():

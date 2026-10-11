@@ -64,3 +64,15 @@ def test_worst():
     assert worst([Result("a", PASS, ""), Result("b", WARN, "")]) == WARN
     assert worst([Result("a", FAIL, ""), Result("b", WARN, "")]) == FAIL
     assert worst([]) == PASS
+
+
+def test_true_peak():
+    p = Profile(name="t", max_true_peak=-1.0)
+    assert status(meas(true_peak=-1.0), p, "true-peak") == PASS
+    assert status(meas(true_peak=-0.4), p, "true-peak") == FAIL
+
+
+def test_sample_peak():
+    p = Profile(name="t", max_sample_peak=-3.0)
+    assert status(meas(sample_peak=-3.5), p, "sample-peak") == PASS
+    assert status(meas(sample_peak=-2.9), p, "sample-peak") == FAIL
