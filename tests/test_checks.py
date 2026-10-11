@@ -111,3 +111,21 @@ def test_noise_floor():
     p = Profile(name="t", max_noise_floor=-60.0)
     assert status(meas(noise_floor=-65.0), p, "noise-floor") == PASS
     assert status(meas(noise_floor=-52.0), p, "noise-floor") == FAIL
+
+
+def test_clipping_on_by_default():
+    p = Profile(name="t")
+    assert status(meas(), p, "clipping") == PASS
+    r = next(
+        r
+        for r in run_checks(meas(clip_count=2, clips=[(61.2, 0, 4), (90.0, 1, 3)]), p)
+        if r.check == "clipping"
+    )
+    assert r.status == FAIL and "1:01" in r.message
+
+
+def test_dc_and_dual_mono_warn():
+    p = Profile(name="t")
+    assert status(meas(dc_offset=0.03), p, "dc-offset") == WARN
+    assert status(meas(dual_mono=True), p, "dual-mono") == WARN
+    assert status(meas(channels=1, dual_mono=False), p, "dual-mono") is None

@@ -120,6 +120,31 @@ def _noise(m: Measurements, p: Profile) -> Result | None:
     return Result("noise-floor", FAIL if m.noise_floor > p.max_noise_floor else PASS, msg)
 
 
+@check("clipping")
+def _clipping(m: Measurements, p: Profile) -> Result | None:
+    if m.clip_count <= p.max_clips:
+        return Result("clipping", PASS, f"{m.clip_count} clipped runs")
+    where = ", ".join(clock(t) for t, _, _ in m.clips[:5])
+    return Result("clipping", FAIL, f"{m.clip_count} clipped runs, first at {where}")
+
+
+@check("dc-offset")
+def _dc(m: Measurements, p: Profile) -> Result | None:
+    msg = f"DC offset {m.dc_offset * 100:.2f}% of full scale"
+    return Result("dc-offset", WARN if m.dc_offset > p.max_dc_offset else PASS, msg)
+
+
+@check("dual-mono")
+def _dual_mono(m: Measurements, p: Profile) -> Result | None:
+    if not p.warn_dual_mono or m.channels != 2:
+        return None
+    if m.dual_mono:
+        return Result(
+            "dual-mono", WARN, "both channels are identical; a mono file is half the size"
+        )
+    return Result("dual-mono", PASS, "channels differ")
+
+
 def clock(seconds: float) -> str:
     m, s = divmod(int(seconds), 60)
     h, m = divmod(m, 60)
