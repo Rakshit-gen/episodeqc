@@ -73,18 +73,20 @@ def main(argv=None) -> int:
     if not files:
         print("episodeqc: no audio files found", file=sys.stderr)
         return 2
-    reports = []
+    reports, errors = [], 0
     for path in files:
         try:
             reports.append(check_file(path, profile))
         except Exception as e:  # unreadable or not audio: report it and keep going
             print(f"episodeqc: {path}: {e}", file=sys.stderr)
-            return 2
+            errors += 1
 
     if args.format == "json":
         print(as_json(reports, profile.name))
     else:
         print(text(reports, verbose=args.verbose))
+    if errors:
+        return 2
     return 1 if any(r.status == FAIL for r in reports) else 0
 
 

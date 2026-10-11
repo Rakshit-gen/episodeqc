@@ -81,3 +81,13 @@ def test_folder_is_searched(tmp_path, capsys):
 def test_empty_folder_exits_2(tmp_path, capsys):
     assert main(["check", str(tmp_path)]) == 2
     assert "no audio files" in capsys.readouterr().err
+
+
+def test_one_bad_file_does_not_stop_the_rest(tmp_path, capsys):
+    write(tmp_path / "ep01.wav", at_lufs(-16.0))
+    (tmp_path / "ep02.wav").write_text("broken upload")
+    write(tmp_path / "ep03.wav", at_lufs(-16.0))
+    assert main(["check", str(tmp_path)]) == 2
+    out = capsys.readouterr()
+    assert "ep01.wav" in out.out and "ep03.wav" in out.out
+    assert "ep02.wav" in out.err
