@@ -15,6 +15,9 @@ dependencies = [
     "soundfile>=0.12",
 ]
 
+[project.scripts]
+episodeqc = "episodeqc.cli:main"
+
 [dependency-groups]
 dev = [
     "pyloudnorm>=0.2.0",
