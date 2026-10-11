@@ -49,13 +49,18 @@ def check_file(path: Path, profile: Profile) -> EpisodeReport:
 
 
 def run_normalize(args, profile: Profile) -> int:
-    files = expand(args.paths)
-    if not files:
+    # Keep each folder's layout under --out, so season1/ep01.wav and
+    # season2/ep01.wav do not overwrite each other.
+    jobs = [
+        (f, args.out / (f.relative_to(p) if p.is_dir() else f.name))
+        for p in args.paths
+        for f in expand([p])
+    ]
+    if not jobs:
         print("episodeqc: no audio files found", file=sys.stderr)
         return 2
     status = 0
-    for src in files:
-        dst = args.out / src.name
+    for src, dst in jobs:
         if dst.resolve() == src.resolve():
             print(f"episodeqc: {src}: output would overwrite the input", file=sys.stderr)
             return 2

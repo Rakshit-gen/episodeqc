@@ -35,3 +35,12 @@ def test_refuses_when_gain_would_clip(tmp_path, capsys):
 def test_will_not_overwrite_input(tmp_path, capsys):
     src = write(tmp_path / "ep.wav", at_lufs(-20.0))
     assert main(["normalize", str(src), "-o", str(tmp_path)]) == 2
+
+
+def test_folder_layout_is_kept(tmp_path):
+    for season in ("s1", "s2"):
+        (tmp_path / "in" / season).mkdir(parents=True)
+        write(tmp_path / "in" / season / "ep01.wav", at_lufs(-18.0))
+    assert main(["normalize", str(tmp_path / "in"), "-o", str(tmp_path / "out")]) == 0
+    assert (tmp_path / "out" / "s1" / "ep01.wav").exists()
+    assert (tmp_path / "out" / "s2" / "ep01.wav").exists()
