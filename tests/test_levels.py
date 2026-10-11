@@ -23,3 +23,12 @@ def test_digital_silence_is_not_the_noise_floor():
     gap = np.zeros((48000, 1))
     fr = analyze_array(np.concatenate([speech, gap, room, speech]), 48000)
     assert noise_floor_db(fr) == pytest.approx(-62, abs=0.5)
+
+
+def test_dc_offset():
+    from episodeqc.levels import dc_offset
+
+    x = sine(seconds=2, amp=0.3, channels=2)
+    x[:, 1] += 0.02
+    assert dc_offset(analyze_array(x, 48000)) == pytest.approx(0.02, abs=1e-4)
+    assert dc_offset(analyze_array(sine(seconds=2), 48000)) < 1e-6

@@ -44,3 +44,10 @@ def noise_floor_db(fr: Frames) -> float:
     touches_silence = (silent[NOISE_WINDOW_FRAMES:] - silent[:-NOISE_WINDOW_FRAMES]) > 0
     w = w[~touches_silence]
     return float(w.min()) if len(w) else float("-inf")
+
+
+def dc_offset(fr: Frames) -> float:
+    """Largest per-channel mean, as a fraction of full scale (0.01 = 1%)."""
+    if fr.sums is None or not fr.samples:
+        return 0.0
+    return float(np.abs(fr.sums / fr.samples).max())

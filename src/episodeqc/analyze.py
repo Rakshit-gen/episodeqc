@@ -32,6 +32,7 @@ class Frames:
     true_peak: float = 0.0  # linear, 4x oversampled
     clips: list = field(default_factory=list)  # (start sample, channel, run length)
     clip_count: int = 0
+    sums: np.ndarray | None = None  # per-channel sample sums, for DC offset
 
     @property
     def duration(self) -> float:
@@ -56,6 +57,7 @@ class Analyzer:
         self._run = np.zeros(channels, dtype=np.int64)  # open full-scale run per channel
         self.clips: list[tuple[int, int, int]] = []
         self.clip_count = 0
+        self._sums = np.zeros(channels)
 
     def feed(self, chunk: np.ndarray) -> None:
         chunk = np.asarray(chunk, dtype=np.float64)
@@ -64,6 +66,7 @@ class Analyzer:
         if chunk.shape[1] != self.channels:
             raise ValueError(f"expected {self.channels} channels, got {chunk.shape[1]}")
         self._find_clips(chunk, self.samples)
+        self._sums += chunk.sum(axis=0)
         self.samples += len(chunk)
         weighted, self._zi = sosfilt(self._sos, chunk, axis=0, zi=self._zi)
         self._carry = self._frame(np.concatenate([self._carry, chunk]), self._power)
@@ -134,6 +137,7 @@ class Analyzer:
             true_peak=self.true_peak,
             clips=sorted(self.clips),
             clip_count=self.clip_count,
+            sums=self._sums.copy(),
         )
 
 
