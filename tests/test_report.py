@@ -38,3 +38,13 @@ def test_json_round_trips():
     assert ep["status"] == "fail"
     assert ep["fix"]["gain_db"] == 5.0
     assert {c["check"] for c in ep["checks"]} >= {"loudness", "true-peak"}
+
+
+def test_github_annotations():
+    from episodeqc.report import github
+
+    out = github([make("s1/ep, 2.wav", integrated=-21.0, true_peak=-8.0, dual_mono=True)])
+    lines = out.splitlines()
+    assert lines[0].startswith("::error file=s1/ep%2C 2.wav,title=episodeqc loudness::")
+    assert "apply +5.0 dB" in lines[0]
+    assert any(line.startswith("::warning ") and "dual-mono" in line for line in lines)

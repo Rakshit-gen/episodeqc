@@ -69,3 +69,29 @@ def as_json(reports: list[EpisodeReport], profile: str) -> str:
         },
         indent=2,
     )
+
+
+def _escape(s: str, prop: bool = False) -> str:
+    s = s.replace("%", "%25").replace("\r", "%0D").replace("\n", "%0A")
+    if prop:
+        s = s.replace(":", "%3A").replace(",", "%2C")
+    return s
+
+
+def github(reports: list[EpisodeReport]) -> str:
+    """GitHub Actions workflow commands, so problems show up on the run page."""
+    lines = []
+    for rep in reports:
+        for r in rep.results:
+            if r.status == PASS:
+                continue
+            level = "error" if r.status == FAIL else "warning"
+            msg = r.message + (
+                f" ({rep.fix.describe()})" if r.check == "loudness" and rep.fix else ""
+            )
+            lines.append(
+                f"::{level} file={_escape(rep.path, True)},"
+                f"title={_escape('episodeqc ' + r.check, True)}::{_escape(msg)}"
+            )
+    lines.append(summary_line(reports))
+    return "\n".join(lines)

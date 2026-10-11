@@ -10,7 +10,7 @@ from .checks import FAIL, WARN, run_checks
 from .fix import suggest_gain
 from .measure import measure
 from .profiles import BUILTIN, Profile, ProfileError, load_profile
-from .report import EpisodeReport, as_json, text
+from .report import EpisodeReport, as_json, github, text
 
 AUDIO_EXTS = {".wav", ".flac", ".mp3", ".ogg", ".aiff", ".aif"}
 
@@ -59,7 +59,7 @@ def main(argv=None) -> int:
         default="podcast",
         help="built-in profile name or a TOML file (default: podcast)",
     )
-    c.add_argument("-f", "--format", choices=["text", "json"], default="text")
+    c.add_argument("-f", "--format", choices=["text", "json", "github"], default="text")
     c.add_argument("--strict", action="store_true", help="treat warnings as failures")
     c.add_argument("-v", "--verbose", action="store_true", help="show passing checks too")
 
@@ -84,6 +84,8 @@ def main(argv=None) -> int:
 
     if args.format == "json":
         print(as_json(reports, profile.name))
+    elif args.format == "github":
+        print(github(reports))
     else:
         print(text(reports, verbose=args.verbose))
     if errors:
