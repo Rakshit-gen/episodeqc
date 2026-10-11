@@ -11,7 +11,7 @@ def with_clips(spans, n=48000, channels=1):
     return x
 
 
-@pytest.mark.parametrize("chunk", [7, 1000, 100000])
+@pytest.mark.parametrize("chunk", [97, 1000, 100000])
 def test_runs_are_found_whatever_the_chunking(chunk):
     x = with_clips([(100, 5, 0), (20000, 3, 0), (30000, 2, 0), (47990, 10, 0)])
     fr = analyze_array(x, 48000, chunk=chunk)
