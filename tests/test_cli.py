@@ -143,3 +143,11 @@ def test_explicit_config_and_bad_keys(tmp_path, capsys):
     cfg.write_text("strictt = true\n")
     assert main(["-c", str(cfg), "check", str(ep)]) == 2
     assert "strictt" in capsys.readouterr().err
+
+
+def test_profiles_command(capsys):
+    assert main(["profiles"]) == 0
+    out = capsys.readouterr().out
+    assert "acx: Audiobooks" in out
+    assert "    max_noise_floor = -60.0" in out
+    assert "checks: loudness, true-peak" in out

@@ -35,6 +35,21 @@ def expand(paths: list[Path]) -> list[Path]:
     return out
 
 
+def list_profiles() -> str:
+    from dataclasses import fields
+
+    lines = []
+    for p in BUILTIN.values():
+        lines.append(f"{p.name}: {p.description}")
+        for f in fields(p):
+            v = getattr(p, f.name)
+            if f.name in ("name", "description") or v in (None, (), frozenset()):
+                continue
+            lines.append(f"    {f.name} = {v}")
+    lines.append(f"checks: {', '.join(CHECKS)}")
+    return "\n".join(lines)
+
+
 def resolve_profile(name: str) -> Profile:
     if name in BUILTIN:
         return BUILTIN[name]
@@ -140,7 +155,12 @@ def main(argv=None) -> int:
     n.add_argument("-o", "--out", type=Path, required=True, help="output folder")
     n.add_argument("-p", "--profile", default=None)
 
+    sub.add_parser("profiles", help="list built-in profiles and checks")
+
     args = ap.parse_args(argv)
+    if args.cmd == "profiles":
+        print(list_profiles())
+        return 0
     try:
         cfg = load_config(args.config)
         profile = resolve_profile(args.profile or cfg.get("profile", "podcast"))
