@@ -46,3 +46,26 @@ def summary_line(reports: list[EpisodeReport]) -> str:
         f"{n} episode{'s' if n != 1 else ''}: {counts[PASS]} passed, "
         f"{counts[WARN]} with warnings, {counts[FAIL]} failed"
     )
+
+
+def as_json(reports: list[EpisodeReport], profile: str) -> str:
+    import json
+    from dataclasses import asdict
+
+    return json.dumps(
+        {
+            "profile": profile,
+            "summary": summary_line(reports),
+            "episodes": [
+                {
+                    "path": rep.path,
+                    "status": rep.status,
+                    "measurements": rep.measurements.to_dict(),
+                    "checks": [asdict(r) for r in rep.results],
+                    "fix": asdict(rep.fix) if rep.fix else None,
+                }
+                for rep in reports
+            ],
+        },
+        indent=2,
+    )
