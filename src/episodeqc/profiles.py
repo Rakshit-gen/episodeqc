@@ -70,3 +70,43 @@ BUILTIN = {
 }
 
 FIELDS = {f.name for f in fields(Profile)}
+
+
+class ProfileError(ValueError):
+    pass
+
+
+def load_profile(path) -> Profile:
+    """Read a profile from a TOML file. Unknown keys are an error, not a silent no-op."""
+    import tomllib
+    from pathlib import Path
+
+    with open(path, "rb") as f:
+        data = tomllib.load(f)
+    return profile_from_dict(data, default_name=Path(path).stem)
+
+
+def profile_from_dict(data: dict, default_name: str = "custom") -> Profile:
+    data = dict(data)
+    base = data.pop("extends", None)
+    unknown = set(data) - FIELDS
+    if unknown:
+        raise ProfileError(f"unknown profile keys: {', '.join(sorted(unknown))}")
+    for key in ("lead_silence", "tail_silence"):
+        if key in data:
+            v = data[key]
+            if not (isinstance(v, list) and len(v) == 2 and v[0] <= v[1]):
+                raise ProfileError(f"{key} must be [min, max] seconds")
+            data[key] = tuple(v)
+    for key in ("sample_rates", "channels"):
+        if key in data:
+            data[key] = tuple(data[key])
+    if "disabled" in data:
+        data["disabled"] = frozenset(data["disabled"])
+    if base is not None:
+        if base not in BUILTIN:
+            raise ProfileError(f"extends: no built-in profile named {base!r}")
+        from dataclasses import replace
+
+        return replace(BUILTIN[base], **{"name": default_name, **data})
+    return Profile(**{"name": default_name, **data})
