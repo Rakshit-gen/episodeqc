@@ -12,6 +12,24 @@ from .measure import measure
 from .profiles import BUILTIN, Profile, ProfileError, load_profile
 from .report import EpisodeReport, as_json, text
 
+AUDIO_EXTS = {".wav", ".flac", ".mp3", ".ogg", ".aiff", ".aif"}
+
+
+def expand(paths: list[Path]) -> list[Path]:
+    """Files as given; directories searched recursively for audio, in name order."""
+    out = []
+    for p in paths:
+        if p.is_dir():
+            out += sorted(
+                f
+                for f in p.rglob("*")
+                if f.suffix.lower() in AUDIO_EXTS
+                and not any(part.startswith(".") for part in f.relative_to(p).parts)
+            )
+        else:
+            out.append(p)
+    return out
+
 
 def resolve_profile(name: str) -> Profile:
     if name in BUILTIN:
@@ -34,7 +52,7 @@ def main(argv=None) -> int:
     sub = ap.add_subparsers(dest="cmd", required=True)
 
     c = sub.add_parser("check", help="check episodes against a delivery profile")
-    c.add_argument("paths", nargs="+", type=Path)
+    c.add_argument("paths", nargs="+", type=Path, help="audio files or folders")
     c.add_argument(
         "-p",
         "--profile",
@@ -51,8 +69,12 @@ def main(argv=None) -> int:
         print(f"episodeqc: {e}", file=sys.stderr)
         return 2
 
+    files = expand(args.paths)
+    if not files:
+        print("episodeqc: no audio files found", file=sys.stderr)
+        return 2
     reports = []
-    for path in args.paths:
+    for path in files:
         try:
             reports.append(check_file(path, profile))
         except Exception as e:  # unreadable or not audio: report it and keep going

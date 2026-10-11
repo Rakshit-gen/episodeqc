@@ -62,3 +62,22 @@ def test_silent_file(tmp_path, capsys):
     ep = write(tmp_path / "ep.wav", np.zeros(48000 * 3))
     assert main(["check", str(ep)]) == 1
     assert "-inf LUFS" in capsys.readouterr().out
+
+
+def test_folder_is_searched(tmp_path, capsys):
+    season = tmp_path / "season1"
+    (season / "part2").mkdir(parents=True)
+    (season / ".trash").mkdir()
+    write(season / "ep02.wav", at_lufs(-16.0))
+    write(season / "part2" / "ep10.flac", at_lufs(-16.0))
+    write(season / ".trash" / "old.wav", at_lufs(-30.0))
+    (season / "cover.jpg").write_bytes(b"x")
+    assert main(["check", str(season)]) == 0
+    out = capsys.readouterr().out
+    assert "ep02.wav" in out and "ep10.flac" in out and "old.wav" not in out
+    assert "2 episodes" in out
+
+
+def test_empty_folder_exits_2(tmp_path, capsys):
+    assert main(["check", str(tmp_path)]) == 2
+    assert "no audio files" in capsys.readouterr().err
