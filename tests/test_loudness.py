@@ -44,3 +44,15 @@ def test_relative_gate_ignores_quiet_tail():
     alone = lufs(speech)
     with_tail = lufs(np.concatenate([speech, hiss]))
     assert with_tail == pytest.approx(alone, abs=0.1)
+
+
+def test_momentary_catches_a_short_burst_that_short_term_smooths():
+    import numpy as np
+
+    from episodeqc.loudness import momentary_max, short_term_max
+
+    bed = sine(seconds=10, amp=0.05)
+    burst = sine(seconds=0.5, amp=0.5)
+    fr = analyze_array(np.concatenate([bed, burst, bed]), 48000)
+    assert momentary_max(fr) == pytest.approx(-3.01 - 6.02, abs=0.2)
+    assert short_term_max(fr) < momentary_max(fr) - 6

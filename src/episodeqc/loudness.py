@@ -42,3 +42,17 @@ def integrated(fr: Frames) -> float:
     threshold = to_lufs(blocks.mean()) + REL_GATE
     gated = blocks[to_lufs(blocks) > threshold]
     return float(to_lufs(gated.mean()))
+
+
+MOMENTARY_FRAMES = 4  # 400 ms
+SHORT_TERM_FRAMES = 30  # 3 s
+
+
+def momentary_max(fr: Frames) -> float:
+    blocks = block_power(fr, MOMENTARY_FRAMES)
+    return float(to_lufs(blocks.max())) if len(blocks) else float("-inf")
+
+
+def short_term_max(fr: Frames) -> float:
+    blocks = block_power(fr, SHORT_TERM_FRAMES)
+    return float(to_lufs(blocks.max())) if len(blocks) else float("-inf")
