@@ -8,6 +8,7 @@ from pathlib import Path
 from . import __version__
 from .analyze import analyze_file
 from .checks import CHECKS, FAIL, WARN, run_checks
+from .config import DEFAULT_NAME, ConfigError, load_config
 from .fix import suggest_gain
 from .measure import measure
 from .normalize import NeedsLimiter, normalize
@@ -95,6 +96,9 @@ def run_normalize(args, profile: Profile) -> int:
 def main(argv=None) -> int:
     ap = argparse.ArgumentParser(prog="episodeqc", description=__doc__)
     ap.add_argument("--version", action="version", version=f"episodeqc {__version__}")
+    ap.add_argument(
+        "-c", "--config", type=Path, help=f"settings file (default: {DEFAULT_NAME} if present)"
+    )
     sub = ap.add_subparsers(dest="cmd", required=True)
 
     c = sub.add_parser("check", help="check episodes against a delivery profile")
@@ -102,14 +106,14 @@ def main(argv=None) -> int:
     c.add_argument(
         "-p",
         "--profile",
-        default="podcast",
+        default=None,
         help="built-in profile name or a TOML file (default: podcast)",
     )
     c.add_argument("-f", "--format", choices=["text", "json", "github", "markdown"], default="text")
     c.add_argument(
         "--series-tolerance",
         type=float,
-        default=1.5,
+        default=None,
         metavar="LU",
         help="warn when an episode is this far from the season median (default 1.5)",
     )
@@ -134,16 +138,21 @@ def main(argv=None) -> int:
     n = sub.add_parser("normalize", help="write level-corrected copies of episodes")
     n.add_argument("paths", nargs="+", type=Path, help="audio files or folders")
     n.add_argument("-o", "--out", type=Path, required=True, help="output folder")
-    n.add_argument("-p", "--profile", default="podcast")
+    n.add_argument("-p", "--profile", default=None)
 
     args = ap.parse_args(argv)
     try:
-        profile = resolve_profile(args.profile)
-    except ProfileError as e:
+        cfg = load_config(args.config)
+        profile = resolve_profile(args.profile or cfg.get("profile", "podcast"))
+    except (ProfileError, ConfigError) as e:
         print(f"episodeqc: {e}", file=sys.stderr)
         return 2
     if args.cmd == "normalize":
         return run_normalize(args, profile)
+    args.disable = cfg.get("disable", []) + args.disable
+    args.strict = args.strict or cfg.get("strict", False)
+    if args.series_tolerance is None:
+        args.series_tolerance = cfg.get("series_tolerance", 1.5)
     unknown = set(args.disable) - set(CHECKS)
     if unknown:
         print(

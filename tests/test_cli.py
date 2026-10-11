@@ -127,3 +127,19 @@ def test_disable(tmp_path, capsys):
     assert main(["check", "--disable", "loudness", str(ep)]) == 0
     assert main(["check", "--disable", "loudnes", str(ep)]) == 2
     assert "unknown check loudnes" in capsys.readouterr().err
+
+
+def test_config_file(tmp_path, monkeypatch, capsys):
+    ep = write(tmp_path / "ep.wav", at_lufs(-23.0))
+    (tmp_path / ".episodeqc.toml").write_text('profile = "ebu-r128"\ndisable = ["dual-mono"]\n')
+    monkeypatch.chdir(tmp_path)
+    assert main(["check", str(ep)]) == 0  # -23 passes ebu-r128, would fail podcast
+    assert main(["check", "-p", "podcast", str(ep)]) == 1  # the flag wins
+
+
+def test_explicit_config_and_bad_keys(tmp_path, capsys):
+    ep = write(tmp_path / "ep.wav", at_lufs(-16.0))
+    cfg = tmp_path / "qc.toml"
+    cfg.write_text("strictt = true\n")
+    assert main(["-c", str(cfg), "check", str(ep)]) == 2
+    assert "strictt" in capsys.readouterr().err
