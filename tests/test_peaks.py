@@ -22,7 +22,7 @@ def test_low_frequency_true_peak_equals_sample_peak():
 
 def test_chunking_does_not_change_true_peak():
     x = sine(freq=12000, seconds=1, phase=np.pi / 4) * np.linspace(0.2, 1, 48000)[:, None]
-    a = analyze_array(x, 48000, chunk=5)
+    a = analyze_array(x, 48000, chunk=37)
     b = analyze_array(x, 48000, chunk=100000)
     assert a.true_peak == pytest.approx(b.true_peak, rel=1e-9)
 

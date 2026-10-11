@@ -5,7 +5,7 @@ so an hour of stereo audio costs a few hundred kilobytes of state instead of
 a gigabyte of samples. Every measurement is computed from those frames.
 """
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 import numpy as np
 from scipy.signal import resample_poly, sosfilt
@@ -15,6 +15,9 @@ from .kweight import k_weighting_sos
 FRAME_SECONDS = 0.1
 OVERSAMPLE = 4
 TP_OVERLAP = 16  # input samples of context around each chunk for the oversampler
+CLIP_LEVEL = 0.999  # |sample| at or above this counts as full scale
+CLIP_MIN_RUN = 3  # consecutive full-scale samples before we call it a clip
+MAX_EVENTS = 1000
 
 
 @dataclass
@@ -27,6 +30,8 @@ class Frames:
     power: np.ndarray  # (frames, channels) plain mean square
     sample_peak: float = 0.0  # linear, all channels
     true_peak: float = 0.0  # linear, 4x oversampled
+    clips: list = field(default_factory=list)  # (start sample, channel, run length)
+    clip_count: int = 0
 
     @property
     def duration(self) -> float:
@@ -48,6 +53,9 @@ class Analyzer:
         self.sample_peak = 0.0
         self.true_peak = 0.0
         self._tp_tail = np.zeros((2 * TP_OVERLAP, channels))
+        self._run = np.zeros(channels, dtype=np.int64)  # open full-scale run per channel
+        self.clips: list[tuple[int, int, int]] = []
+        self.clip_count = 0
 
     def feed(self, chunk: np.ndarray) -> None:
         chunk = np.asarray(chunk, dtype=np.float64)
@@ -55,6 +63,7 @@ class Analyzer:
             chunk = chunk[:, None]
         if chunk.shape[1] != self.channels:
             raise ValueError(f"expected {self.channels} channels, got {chunk.shape[1]}")
+        self._find_clips(chunk, self.samples)
         self.samples += len(chunk)
         weighted, self._zi = sosfilt(self._sos, chunk, axis=0, zi=self._zi)
         self._carry = self._frame(np.concatenate([self._carry, chunk]), self._power)
@@ -62,6 +71,33 @@ class Analyzer:
         if len(chunk):
             self.sample_peak = max(self.sample_peak, float(np.abs(chunk).max()))
         self._true_peak(chunk)
+
+    def _find_clips(self, chunk: np.ndarray, offset: int) -> None:
+        full = np.abs(chunk) >= CLIP_LEVEL
+        n = len(chunk)
+        for ch in range(self.channels):
+            col = full[:, ch]
+            run = int(self._run[ch])  # open run that ended the previous chunk
+            self._run[ch] = 0
+            if run and not (n and col[0]):
+                self._close_run(offset - run, ch, run)
+            if not col.any():
+                continue
+            edges = np.diff(np.concatenate([[0], col.astype(np.int8), [0]]))
+            for a, b in zip(np.flatnonzero(edges == 1), np.flatnonzero(edges == -1), strict=True):
+                start, length = offset + a, b - a
+                if a == 0 and run:
+                    start, length = offset - run, length + run
+                if b == n:
+                    self._run[ch] = length  # may continue into the next chunk
+                else:
+                    self._close_run(start, ch, length)
+
+    def _close_run(self, start: int, ch: int, length: int) -> None:
+        if length >= CLIP_MIN_RUN:
+            self.clip_count += 1
+            if len(self.clips) < MAX_EVENTS:
+                self.clips.append((start, ch, length))
 
     def _true_peak(self, chunk: np.ndarray) -> None:
         # Oversample with context on both sides; the last TP_OVERLAP samples are
@@ -82,6 +118,9 @@ class Analyzer:
 
     def finish(self) -> Frames:
         self._true_peak(np.zeros((TP_OVERLAP, self.channels)))
+        for ch, run in enumerate(self._run):
+            if run:
+                self._close_run(self.samples - int(run), ch, int(run))
         self.true_peak = max(self.true_peak, self.sample_peak)
         empty = np.zeros((0, self.channels))
         return Frames(
@@ -93,6 +132,8 @@ class Analyzer:
             power=np.concatenate(self._power) if self._power else empty,
             sample_peak=self.sample_peak,
             true_peak=self.true_peak,
+            clips=sorted(self.clips),
+            clip_count=self.clip_count,
         )
 
 
