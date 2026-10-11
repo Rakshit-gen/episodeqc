@@ -61,3 +61,12 @@ def test_bad_silence_range(tmp_path):
     p.write_text("lead_silence = [2.0, 1.0]\n")
     with pytest.raises(ProfileError):
         load_profile(p)
+
+
+def test_example_profile_loads():
+    from pathlib import Path
+
+    from episodeqc.profiles import load_profile
+
+    p = load_profile(Path(__file__).parent.parent / "examples" / "audio-app.toml")
+    assert p.max_gap == 4.0 and p.loudness == -16.0

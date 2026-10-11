@@ -1,0 +1,18 @@
+# A house spec for a mobile audio-series app, built on the podcast profile.
+# Copy it, change the numbers to your own delivery spec, and pass it with -p.
+extends = "podcast"
+
+loudness = -16.0
+loudness_tolerance = 1.0
+max_true_peak = -1.0
+max_lra = 12.0
+
+# Episodes open on the recap or the cold open, not on silence.
+lead_silence = [0.0, 1.0]
+tail_silence = [0.0, 3.0]
+max_gap = 4.0
+
+sample_rates = [44100, 48000]
+channels = [1, 2]
+min_duration = 120
+max_duration = 1800

@@ -1,0 +1,32 @@
+name: episodeqc
+description: Check audio episodes against loudness and delivery specs
+branding:
+  icon: headphones
+  color: purple
+inputs:
+  paths:
+    description: Audio files or folders, space separated
+    required: true
+  profile:
+    description: Built-in profile name or a TOML profile file
+    default: podcast
+  strict:
+    description: Treat warnings as failures
+    default: "false"
+runs:
+  using: composite
+  steps:
+    - uses: astral-sh/setup-uv@v6
+    - name: Check episodes
+      shell: bash
+      env:
+        PATHS: ${{ inputs.paths }}
+        PROFILE: ${{ inputs.profile }}
+        STRICT: ${{ inputs.strict }}
+      run: |
+        args=(check -p "$PROFILE")
+        [ "$STRICT" = "true" ] && args+=(--strict)
+        # Annotations on the run page, and a table in the job summary.
+        uvx --from "${{ github.action_path }}" episodeqc "${args[@]}" -f markdown $PATHS \
+          >> "$GITHUB_STEP_SUMMARY" || true
+        uvx --from "${{ github.action_path }}" episodeqc "${args[@]}" -f github $PATHS
