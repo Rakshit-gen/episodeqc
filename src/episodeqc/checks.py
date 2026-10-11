@@ -102,6 +102,24 @@ def _gaps(m: Measurements, p: Profile) -> Result | None:
     return Result("dead-air", FAIL, f"{len(long)} silences over {p.max_gap:g} s: {where}{more}")
 
 
+@check("rms")
+def _rms(m: Measurements, p: Profile) -> Result | None:
+    if p.rms_min is None and p.rms_max is None:
+        return None
+    lo = -math.inf if p.rms_min is None else p.rms_min
+    hi = math.inf if p.rms_max is None else p.rms_max
+    msg = f"RMS {fmt(m.rms, 'dBFS')}, allowed {lo:g} to {hi:g}"
+    return Result("rms", PASS if lo <= m.rms <= hi else FAIL, msg)
+
+
+@check("noise-floor")
+def _noise(m: Measurements, p: Profile) -> Result | None:
+    if p.max_noise_floor is None:
+        return None
+    msg = f"noise floor {fmt(m.noise_floor, 'dBFS')}, max {p.max_noise_floor:g}"
+    return Result("noise-floor", FAIL if m.noise_floor > p.max_noise_floor else PASS, msg)
+
+
 def clock(seconds: float) -> str:
     m, s = divmod(int(seconds), 60)
     h, m = divmod(m, 60)

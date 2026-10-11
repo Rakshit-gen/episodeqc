@@ -98,3 +98,16 @@ def test_dead_air_names_where():
     assert r.status == FAIL
     assert "9.5 s at 12:34" in r.message
     assert status(meas(gaps=[(1.0, 3.9)]), p, "dead-air") == PASS
+
+
+def test_rms_window():
+    p = Profile(name="t", rms_min=-23.0, rms_max=-18.0)
+    assert status(meas(rms=-20.0), p, "rms") == PASS
+    assert status(meas(rms=-25.0), p, "rms") == FAIL
+    assert status(meas(rms=-17.0), p, "rms") == FAIL
+
+
+def test_noise_floor():
+    p = Profile(name="t", max_noise_floor=-60.0)
+    assert status(meas(noise_floor=-65.0), p, "noise-floor") == PASS
+    assert status(meas(noise_floor=-52.0), p, "noise-floor") == FAIL
