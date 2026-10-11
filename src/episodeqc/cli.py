@@ -9,6 +9,7 @@ from .analyze import analyze_file
 from .checks import FAIL, WARN, run_checks
 from .fix import suggest_gain
 from .measure import measure
+from .normalize import NeedsLimiter, normalize
 from .profiles import BUILTIN, Profile, ProfileError, load_profile
 from .report import EpisodeReport, as_json, github, markdown, text
 from .series import check_series
@@ -47,6 +48,27 @@ def check_file(path: Path, profile: Profile) -> EpisodeReport:
     return EpisodeReport(str(path), m, run_checks(m, profile), suggest_gain(m, profile))
 
 
+def run_normalize(args, profile: Profile) -> int:
+    files = expand(args.paths)
+    if not files:
+        print("episodeqc: no audio files found", file=sys.stderr)
+        return 2
+    status = 0
+    for src in files:
+        dst = args.out / src.name
+        if dst.resolve() == src.resolve():
+            print(f"episodeqc: {src}: output would overwrite the input", file=sys.stderr)
+            return 2
+        try:
+            fix = normalize(src, dst, profile)
+        except NeedsLimiter as e:
+            print(f"{src}: skipped, {e}")
+            status = 1
+            continue
+        print(f"{src} -> {dst}: {fix.describe() if fix else 'already on target, copied'}")
+    return status
+
+
 def main(argv=None) -> int:
     ap = argparse.ArgumentParser(prog="episodeqc", description=__doc__)
     ap.add_argument("--version", action="version", version=f"episodeqc {__version__}")
@@ -72,12 +94,19 @@ def main(argv=None) -> int:
     c.add_argument("--strict", action="store_true", help="treat warnings as failures")
     c.add_argument("-v", "--verbose", action="store_true", help="show passing checks too")
 
+    n = sub.add_parser("normalize", help="write level-corrected copies of episodes")
+    n.add_argument("paths", nargs="+", type=Path, help="audio files or folders")
+    n.add_argument("-o", "--out", type=Path, required=True, help="output folder")
+    n.add_argument("-p", "--profile", default="podcast")
+
     args = ap.parse_args(argv)
     try:
         profile = resolve_profile(args.profile)
     except ProfileError as e:
         print(f"episodeqc: {e}", file=sys.stderr)
         return 2
+    if args.cmd == "normalize":
+        return run_normalize(args, profile)
 
     files = expand(args.paths)
     if not files:
