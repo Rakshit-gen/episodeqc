@@ -6,7 +6,7 @@ from pathlib import Path
 
 from . import __version__
 from .analyze import analyze_file
-from .checks import FAIL, run_checks
+from .checks import FAIL, WARN, run_checks
 from .fix import suggest_gain
 from .measure import measure
 from .profiles import BUILTIN, Profile, ProfileError, load_profile
@@ -60,6 +60,7 @@ def main(argv=None) -> int:
         help="built-in profile name or a TOML file (default: podcast)",
     )
     c.add_argument("-f", "--format", choices=["text", "json"], default="text")
+    c.add_argument("--strict", action="store_true", help="treat warnings as failures")
     c.add_argument("-v", "--verbose", action="store_true", help="show passing checks too")
 
     args = ap.parse_args(argv)
@@ -87,7 +88,8 @@ def main(argv=None) -> int:
         print(text(reports, verbose=args.verbose))
     if errors:
         return 2
-    return 1 if any(r.status == FAIL for r in reports) else 0
+    bad = {FAIL, WARN} if args.strict else {FAIL}
+    return 1 if any(r.status in bad for r in reports) else 0
 
 
 if __name__ == "__main__":

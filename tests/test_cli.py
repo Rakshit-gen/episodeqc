@@ -91,3 +91,10 @@ def test_one_bad_file_does_not_stop_the_rest(tmp_path, capsys):
     out = capsys.readouterr()
     assert "ep01.wav" in out.out and "ep03.wav" in out.out
     assert "ep02.wav" in out.err
+
+
+def test_strict_fails_on_warnings(tmp_path):
+    stereo = np.repeat(at_lufs(-19.0)[:, :1], 2, axis=1)  # identical channels: a warning
+    ep = write(tmp_path / "ep.wav", stereo)
+    assert main(["check", str(ep)]) == 0
+    assert main(["check", "--strict", str(ep)]) == 1
