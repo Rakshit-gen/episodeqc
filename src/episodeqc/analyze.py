@@ -33,6 +33,7 @@ class Frames:
     clips: list = field(default_factory=list)  # (start sample, channel, run length)
     clip_count: int = 0
     sums: np.ndarray | None = None  # per-channel sample sums, for DC offset
+    dual_mono: bool = False  # stereo file whose two channels are identical
 
     @property
     def duration(self) -> float:
@@ -58,6 +59,7 @@ class Analyzer:
         self.clips: list[tuple[int, int, int]] = []
         self.clip_count = 0
         self._sums = np.zeros(channels)
+        self._same = channels == 2
 
     def feed(self, chunk: np.ndarray) -> None:
         chunk = np.asarray(chunk, dtype=np.float64)
@@ -67,6 +69,8 @@ class Analyzer:
             raise ValueError(f"expected {self.channels} channels, got {chunk.shape[1]}")
         self._find_clips(chunk, self.samples)
         self._sums += chunk.sum(axis=0)
+        if self._same and len(chunk):
+            self._same = bool(np.abs(chunk[:, 0] - chunk[:, 1]).max() < 1e-6)
         self.samples += len(chunk)
         weighted, self._zi = sosfilt(self._sos, chunk, axis=0, zi=self._zi)
         self._carry = self._frame(np.concatenate([self._carry, chunk]), self._power)
@@ -138,6 +142,7 @@ class Analyzer:
             clips=sorted(self.clips),
             clip_count=self.clip_count,
             sums=self._sums.copy(),
+            dual_mono=self._same and self.samples > 0,
         )
 
 

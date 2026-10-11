@@ -23,3 +23,11 @@ def test_chunk_size_does_not_change_result():
 def test_plain_power_of_full_scale_sine_is_half():
     fr = analyze_array(sine(seconds=1), 48000)
     np.testing.assert_allclose(fr.power[2:], 0.5, rtol=1e-3)
+
+
+def test_dual_mono():
+    assert analyze_array(sine(seconds=1, channels=2), 48000).dual_mono
+    x = sine(seconds=1, channels=2)
+    x[24012, 1] = 0.0  # a sample that is not already zero
+    assert not analyze_array(x, 48000).dual_mono
+    assert not analyze_array(sine(seconds=1, channels=1), 48000).dual_mono
