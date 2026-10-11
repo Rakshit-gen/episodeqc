@@ -120,3 +120,10 @@ def test_jobs_give_the_same_report(tmp_path, capsys):
     two = capsys.readouterr()
     assert one.out == two.out
     assert "ep9.wav" in two.err
+
+
+def test_disable(tmp_path, capsys):
+    ep = write(tmp_path / "ep.wav", at_lufs(-25.0))
+    assert main(["check", "--disable", "loudness", str(ep)]) == 0
+    assert main(["check", "--disable", "loudnes", str(ep)]) == 2
+    assert "unknown check loudnes" in capsys.readouterr().err

@@ -2,11 +2,12 @@
 
 import argparse
 import sys
+from dataclasses import replace
 from pathlib import Path
 
 from . import __version__
 from .analyze import analyze_file
-from .checks import FAIL, WARN, run_checks
+from .checks import CHECKS, FAIL, WARN, run_checks
 from .fix import suggest_gain
 from .measure import measure
 from .normalize import NeedsLimiter, normalize
@@ -120,6 +121,13 @@ def main(argv=None) -> int:
         default=1,
         help="check this many files at once (default 1: easy on a laptop)",
     )
+    c.add_argument(
+        "--disable",
+        action="append",
+        default=[],
+        metavar="CHECK",
+        help="skip a check (repeatable), e.g. --disable dual-mono",
+    )
     c.add_argument("--strict", action="store_true", help="treat warnings as failures")
     c.add_argument("-v", "--verbose", action="store_true", help="show passing checks too")
 
@@ -136,6 +144,15 @@ def main(argv=None) -> int:
         return 2
     if args.cmd == "normalize":
         return run_normalize(args, profile)
+    unknown = set(args.disable) - set(CHECKS)
+    if unknown:
+        print(
+            f"episodeqc: unknown check {', '.join(sorted(unknown))} (checks: {', '.join(CHECKS)})",
+            file=sys.stderr,
+        )
+        return 2
+    if args.disable:
+        profile = replace(profile, disabled=profile.disabled | set(args.disable))
 
     files = expand(args.paths)
     if not files:
