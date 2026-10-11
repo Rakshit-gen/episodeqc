@@ -154,3 +154,15 @@ def analyze_array(samples: np.ndarray, rate: int, chunk: int = 65536) -> Frames:
     for start in range(0, len(samples), chunk):
         an.feed(samples[start : start + chunk])
     return an.finish()
+
+
+def analyze_file(path, chunk_seconds: float = 10.0) -> Frames:
+    """Stream a file from disk through the analyzer, one chunk at a time."""
+    import soundfile as sf
+
+    with sf.SoundFile(str(path)) as f:
+        an = Analyzer(f.samplerate, f.channels)
+        block = max(1, int(chunk_seconds * f.samplerate))
+        for chunk in f.blocks(blocksize=block, dtype="float64", always_2d=True):
+            an.feed(chunk)
+    return an.finish()
