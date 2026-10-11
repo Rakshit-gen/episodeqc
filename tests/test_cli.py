@@ -108,3 +108,15 @@ def test_season_outlier(tmp_path, capsys):
     assert "warn  series: -0.8 LU" in out
     assert main(["check", "--no-series", str(tmp_path)]) == 0
     assert "series" not in capsys.readouterr().out
+
+
+def test_jobs_give_the_same_report(tmp_path, capsys):
+    for i, lufs in enumerate([-16.0, -22.0, -16.4]):
+        write(tmp_path / f"ep{i}.wav", at_lufs(lufs, seconds=3))
+    (tmp_path / "ep9.wav").write_text("broken")
+    assert main(["check", str(tmp_path)]) == 2
+    one = capsys.readouterr()
+    assert main(["check", "-j", "2", str(tmp_path)]) == 2
+    two = capsys.readouterr()
+    assert one.out == two.out
+    assert "ep9.wav" in two.err

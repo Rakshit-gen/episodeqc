@@ -48,6 +48,23 @@ def check_file(path: Path, profile: Profile) -> EpisodeReport:
     return EpisodeReport(str(path), m, run_checks(m, profile), suggest_gain(m, profile))
 
 
+def _safe_check(path: Path, profile: Profile):
+    try:
+        return check_file(path, profile)
+    except Exception as e:
+        return e
+
+
+def check_all(files: list[Path], profile: Profile, jobs: int):
+    """(path, report or exception) for each file, in the order given."""
+    if jobs <= 1 or len(files) < 2:
+        return [(f, _safe_check(f, profile)) for f in files]
+    from concurrent.futures import ProcessPoolExecutor
+
+    with ProcessPoolExecutor(max_workers=jobs) as pool:
+        return list(zip(files, pool.map(_safe_check, files, [profile] * len(files)), strict=True))
+
+
 def run_normalize(args, profile: Profile) -> int:
     # Keep each folder's layout under --out, so season1/ep01.wav and
     # season2/ep01.wav do not overwrite each other.
@@ -96,6 +113,13 @@ def main(argv=None) -> int:
         help="warn when an episode is this far from the season median (default 1.5)",
     )
     c.add_argument("--no-series", action="store_true", help="skip the season consistency check")
+    c.add_argument(
+        "-j",
+        "--jobs",
+        type=int,
+        default=1,
+        help="check this many files at once (default 1: easy on a laptop)",
+    )
     c.add_argument("--strict", action="store_true", help="treat warnings as failures")
     c.add_argument("-v", "--verbose", action="store_true", help="show passing checks too")
 
@@ -118,12 +142,12 @@ def main(argv=None) -> int:
         print("episodeqc: no audio files found", file=sys.stderr)
         return 2
     reports, errors = [], 0
-    for path in files:
-        try:
-            reports.append(check_file(path, profile))
-        except Exception as e:  # unreadable or not audio: report it and keep going
-            print(f"episodeqc: {path}: {e}", file=sys.stderr)
+    for path, result in check_all(files, profile, args.jobs):
+        if isinstance(result, Exception):  # unreadable or not audio: report it and keep going
+            print(f"episodeqc: {path}: {result}", file=sys.stderr)
             errors += 1
+        else:
+            reports.append(result)
 
     if not args.no_series:
         check_series(reports, args.series_tolerance)
