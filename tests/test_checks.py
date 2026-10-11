@@ -129,3 +129,18 @@ def test_dc_and_dual_mono_warn():
     assert status(meas(dc_offset=0.03), p, "dc-offset") == WARN
     assert status(meas(dual_mono=True), p, "dual-mono") == WARN
     assert status(meas(channels=1, dual_mono=False), p, "dual-mono") is None
+
+
+def test_format():
+    p = Profile(name="t", sample_rates=(44100,), channels=(1,))
+    assert status(meas(rate=44100, channels=1), p, "format") == PASS
+    r = next(r for r in run_checks(meas(rate=48000, channels=2), p) if r.check == "format")
+    assert r.status == FAIL
+    assert "48000" in r.message and "2 channels" in r.message
+
+
+def test_duration():
+    p = Profile(name="t", min_duration=60, max_duration=3600)
+    assert status(meas(duration=600), p, "duration") == PASS
+    assert status(meas(duration=30), p, "duration") == FAIL
+    assert status(meas(duration=4000), p, "duration") == FAIL

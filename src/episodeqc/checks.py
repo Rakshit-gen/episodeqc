@@ -145,6 +145,32 @@ def _dual_mono(m: Measurements, p: Profile) -> Result | None:
     return Result("dual-mono", PASS, "channels differ")
 
 
+@check("format")
+def _format(m: Measurements, p: Profile) -> Result | None:
+    problems = []
+    if p.sample_rates and m.rate not in p.sample_rates:
+        problems.append(f"sample rate {m.rate} Hz not in {', '.join(map(str, p.sample_rates))}")
+    if p.channels and m.channels not in p.channels:
+        problems.append(f"{m.channels} channels, expected {' or '.join(map(str, p.channels))}")
+    if not (p.sample_rates or p.channels):
+        return None
+    if problems:
+        return Result("format", FAIL, "; ".join(problems))
+    return Result("format", PASS, f"{m.rate} Hz, {m.channels} ch")
+
+
+@check("duration")
+def _duration(m: Measurements, p: Profile) -> Result | None:
+    if p.min_duration is None and p.max_duration is None:
+        return None
+    msg = f"length {clock(m.duration)}"
+    if p.min_duration is not None and m.duration < p.min_duration:
+        return Result("duration", FAIL, f"{msg}, shorter than {clock(p.min_duration)}")
+    if p.max_duration is not None and m.duration > p.max_duration:
+        return Result("duration", FAIL, f"{msg}, longer than {clock(p.max_duration)}")
+    return Result("duration", PASS, msg)
+
+
 def clock(seconds: float) -> str:
     m, s = divmod(int(seconds), 60)
     h, m = divmod(m, 60)
